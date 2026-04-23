@@ -1,0 +1,10 @@
+[project]
+name = "DataLab-Projects-Template"
+version = "0.1.0"
+description = "Datalab delivery python project template"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "python-dotenv",
+    "PyYAML",
+]

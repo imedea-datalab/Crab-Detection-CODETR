@@ -1,0 +1,13 @@
+# Settings safe for everyone to see
+database:
+  host: localhost
+  port: 5432
+  name: app_db
+api:
+  timeout: 30
+  key: null
+  prompt: null
+app:
+  log_level: INFO
+
+

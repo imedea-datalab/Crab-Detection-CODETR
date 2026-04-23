@@ -1,0 +1,19 @@
+version: "3.9"
+services:
+  app:
+    build: .
+    image: secure-template-app:latest
+    env_file:
+      - .env
+    environment:
+      - APP__database__host=${DB_HOST}
+      - APP__database__port=${DB_PORT}
+      - APP__database__name=${DB_NAME}
+      - APP__database__user=${DB_USER}
+      - APP__database__password=${DB_PASSWORD}
+      - APP__api__timeout=${API_TIMEOUT}
+      - APP__api__key=${API_KEY}
+      - APP__app__log_level=${LOG_LEVEL}
+    command: ["python", "-m", "src.app.main"]
+
+
