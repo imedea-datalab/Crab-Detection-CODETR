@@ -9,5 +9,8 @@ api:
   prompt: null
 app:
   log_level: INFO
+notebook:
+  model_dir: "/data/model"
+  project_dir: " "
 
 

@@ -4,9 +4,9 @@ services:
     build: .
     image: secure-template-app:latest
     env_file:
-      - .env
+      - path: .env
     environment:
-      - APP__database__host=${DB_HOST}
+      - APP__database__host=${DB_HOST:-localhost}
       - APP__database__port=${DB_PORT}
       - APP__database__name=${DB_NAME}
       - APP__database__user=${DB_USER}
@@ -15,5 +15,3 @@ services:
       - APP__api__key=${API_KEY}
       - APP__app__log_level=${LOG_LEVEL}
     command: ["python", "-m", "src.app.main"]
-
-
