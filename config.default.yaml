@@ -1,16 +1,27 @@
-# Settings safe for everyone to see
-database:
-  host: localhost
-  port: 5432
-  name: app_db
-api:
-  timeout: 30
-  key: null
-  prompt: null
-app:
-  log_level: INFO
-notebook:
-  model_dir: "/data/model"
-  project_dir: " "
+# ---------------------------------------------------------
+# Crab-Detection-CODETR Configuration
+# ---------------------------------------------------------
+# This configuration file is loaded by the application.
+# You can override any of these values using environment 
+# variables in your .env file.
+# 
+# Example: 
+# APP__inference__checkpoint_path="/app/data/weights/my_model.pth"
+# ---------------------------------------------------------
 
+v1_2_4:
+  co_detr:
+    backbone: "swin_l"
+    split: "valid"
+    target_size: 512
+    use_sahi: false
 
+inference:
+  # Inside the Docker container, we assume data is mounted here:
+  dataset_dir: "/app/data/images"
+  coco_json_path: "/app/data/annotations/instances_valid.json"
+  checkpoint_path: "/app/data/weights/best_coco_bbox_mAP_50_epoch_4.pth"
+  
+  # Metrics evaluation thresholds
+  conf_threshold: 0.05
+  iou_threshold: 0.2

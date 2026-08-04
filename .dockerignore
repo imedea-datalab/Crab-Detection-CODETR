@@ -1,29 +1,20 @@
-# Keep images lean and prevent secret leakage into build context
-.git
-.gitignore
-.dockerignore
+# Ignore virtual environments
+.venv/
+env/
+venv/
+__pycache__/
+*.pyc
+
+# Ignore local config overrides and env vars
 .env
-.env.*
-!/.env.example
-secrets*
-secrets/**
-config.override.*
-*.override.yaml
-*.override.yml
-*.private.yaml
-*.private.yml
-**/.DS_Store
-**/__pycache__
-**/*.py[cod]
-**/.pytest_cache
-**/.mypy_cache
-**/.ruff_cache
-**/.coverage
-**/node_modules
-**/dist
-**/build
-**/tmp
-**/.venv
-**/venv
+config.override.yaml
 
+# Ignore data/weights (these should be mounted at runtime, not baked into the image)
+data/
+*.pth
+*.pt
 
+# IDE and git files
+.git/
+.vscode/
+.idea/
