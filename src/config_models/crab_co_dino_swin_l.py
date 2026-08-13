@@ -6,11 +6,11 @@
 
 # Use the absolute path to the MMDetection repository cloned by the slurm script
 _base_ = [
-    '/home/atiwari/Downloads/projects/Crab-Detection/mmdetection/projects/CO-DETR/configs/codino/co_dino_5scale_swin_l_16xb1_1x_coco.py',
+    '/app/mmdetection/projects/CO-DETR/configs/codino/co_dino_5scale_swin_l_16xb1_1x_coco.py',
 ]
 
 custom_imports = dict(
-    imports=['projects.CO-DETR.codetr', 'cangrejo.utils.v1_2_4.custom_hooks', 'cangrejo.utils.v1_2_4.samplers'], allow_failed_imports=False)
+    imports=['projects.CO-DETR.codetr'], allow_failed_imports=False)
 
 num_dec_layer = 6
 loss_lambda = 2.0
@@ -84,7 +84,7 @@ model = dict(
 )
 
 # ── Dataset ────────────────────────────────────────────────────────────
-data_root = '/datalocal/akshay/cangrejo/v1_2_4/codetr_tiling_multicrop'
+data_root = '/app/data/codetr_tiling_multicrop'
 metainfo = dict(classes=('crab', ))
 
 train_pipeline = [
@@ -98,6 +98,7 @@ train_pipeline = [
 test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
+    dict(type='Resize', scale=(1000, 1000), keep_ratio=True),
     dict(
         type='PackDetInputs',
         meta_keys=('img_id', 'img_path', 'ori_shape', 'img_shape', 'scale_factor'))
@@ -110,8 +111,7 @@ train_dataloader = dict(
         data_prefix=dict(img='train/images/'),
         metainfo=metainfo,
         pipeline=train_pipeline
-    ),
-    batch_sampler=dict(type='ResolutionBatchSampler', drop_last=False)
+    )
 )
 
 val_dataloader = dict(
@@ -177,12 +177,9 @@ default_hooks = dict(
     logger=dict(type='LoggerHook', interval=50),
 )
 
-custom_hooks = [
-    dict(type='PlotMetricsHook', plots_dir='/home/atiwari/Downloads/projects/Crab-Detection/data/results/plots/v1_2_4'),
-    dict(type='FreezeBackboneHook', freeze_epochs=5)
-]
+custom_hooks = []
 
 
 
 # ── Work directory ─────────────────────────────────────────────────────
-work_dir = '/home/atiwari/Downloads/projects/Crab-Detection/data/results/modelsOrCheckpoints/v1_2_4/20260630_003855'
+work_dir = '/app/data/results/modelsOrCheckpoints'

@@ -1,31 +1,45 @@
-# Use NVIDIA PyTorch base image or standard Python
-# MMDetection and OpenCV usually need system dependencies
-FROM python:3.10-slim AS base
+# --- Stage 1: Build Environment ---
+FROM nvidia/cuda:12.8.0-devel-ubuntu22.04 AS builder
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
-
-WORKDIR /app
-
-# Install system dependencies required for OpenCV and compiling extensions
-RUN apt-get update -y && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    build-essential \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
+# Install python and build tools
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.10 python3.10-venv python3.10-dev curl build-essential git \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv for fast dependency resolution
-RUN pip install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" sh
 
-# Copy uv dependency files
+WORKDIR /app
 COPY pyproject.toml ./
 
-# Install dependencies using uv into a virtual environment at /app/.venv
-# This creates a local .venv folder inside the container
-RUN uv sync --no-dev
+# Force MMCV to compile for all CUDA architectures even when no GPU is present during build.
+# The +PTX flag allows the driver to JIT compile for newer GPUs (like Blackwell sm_120).
+ENV TORCH_CUDA_ARCH_LIST="6.0;6.1;7.0;7.5;8.0;8.6;8.9;9.0+PTX"
+ENV FORCE_CUDA="1"
+
+# Create venv and install dependencies, forcing CUDA compilation for mmcv
+RUN uv venv --python python3.10 && \
+    uv pip install "setuptools<70" wheel numpy cython && \
+    uv pip install torch --extra-index-url https://download.pytorch.org/whl/cu128 && \
+    uv sync --no-dev --no-build-isolation
+
+# --- Stage 2: Final Runtime Image ---
+FROM ubuntu:22.04
+
+WORKDIR /app
+
+# Install runtime OS dependencies and Python 3.10
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    python3.10 \
+    ca-certificates \
+    libgl1 \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy virtual environment from builder
+COPY --from=builder /app/.venv /app/.venv
 
 # Copy application source code and custom MMDetection
 COPY src ./src
