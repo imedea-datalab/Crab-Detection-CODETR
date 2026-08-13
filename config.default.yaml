@@ -23,5 +23,5 @@ inference:
   checkpoint_path: "/app/data/weights/best_coco_bbox_mAP_50_epoch_4.pth"
   
   # Metrics evaluation thresholds
-  conf_threshold: 0.05
+  conf_threshold: 0.5
   iou_threshold: 0.2

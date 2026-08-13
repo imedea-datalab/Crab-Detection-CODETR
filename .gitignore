@@ -9,8 +9,21 @@ ENV/
 env.bak/
 venv.bak/
 
-# Data and Models
-data/
+# Data and Models (Keep directory structure tracked, ignore all contents/weights)
+data/*
+!data/dataset/
+!data/images/
+!data/model/
+!data/json/
+!data/csv/
+data/dataset/*
+data/images/*
+!data/images/group1/
+data/images/group1/*
+data/model/*
+data/json/*
+data/csv/*
+!data/**/.gitkeep
 mmdetection/
 *.pth
 *.pt
