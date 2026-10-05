@@ -66,36 +66,51 @@ APP__inference__checkpoint_path=/app/data/weights/best_coco_bbox_mAP_50_epoch_4.
 
 The most robust way to run this is using Docker, as it encapsulates all the complex `mmcv` and `torch` dependencies.
 
-### 3.1. Build the Docker Image
+### 3.1. Build the Docker Image (Two Methods)
 
-First, build the Docker image (this will use `uv` internally to quickly resolve and install dependencies into a virtual environment). **This exact command is the same for Linux, Windows PowerShell, and Windows Command Prompt:**
+You can build the Docker image using either **Docker Compose** or standard **Docker CLI**. Both do the exact same thing under the hood:
+
+| Method | Command | How It Works |
+| :--- | :--- | :--- |
+| **Method A: Docker Compose** *(Recommended)* | `docker compose build`<br>*(or `docker compose up --build`)* | Reads `docker-compose.yml`, finds `build: .`, runs the `Dockerfile`, and tags the image as `crab-detection-codetr:latest`. |
+| **Method B: Classic Docker CLI** | `docker build -t crab-detection-codetr .` | Directly builds the `Dockerfile` in the current folder and tags it `crab-detection-codetr:latest`. |
+
+#### How `docker compose up` vs `docker compose build` Works:
+* **`docker compose build`**: **ONLY builds the image.** It does **not** start the container and does **not** run inference. Use this when you want to prepare the image ahead of time.
+* **`docker compose up`**: **Runs inference immediately** using the already built image. It does **not** rebuild the image.
+* **`docker compose up --build`**: **Builds/updates the image AND immediately runs inference** in one single command.
 
 > **Troubleshooting: Permission Denied**
-> If you encounter an error like `ERROR: permission denied while trying to connect to the docker API at unix:///var/run/docker.sock` while running the docker build command, you may need to add yourself to the docker group:
+> If you encounter an error like `ERROR: permission denied while trying to connect to the docker API at unix:///var/run/docker.sock`, add yourself to the docker group:
 > ```bash
 > sudo usermod -aG docker $USER
 > newgrp docker
 > ```
 
 ```bash
+# Method A: Build with Compose
+docker compose build
+
+# Method B: Build with Docker CLI
 docker build -t crab-detection-codetr .
 ```
-OR run it inthe background. .
+
+
+### 3.2. Run Bulk Visual & JSON Inference (Main Mode)
+
+This is the standard mode to process a folder of raw images with Co-DETR (via SAHI). It runs inference and saves:
+1. Annotated images with bounding boxes (`*_pred.jpg`).
+2. Individual detection coordinate JSONs (`*_pred.json`).
+3. A consolidated batch summary (`predictions.json`).
+
+All outputs are saved automatically into a `results/` folder inside the input image directory.
+
+#### Method A: Using Docker Compose (Easiest)
 ```bash
-# Create a directory ./data/logs/ first. 
-mkdir -p ./data/logs/
-nohup docker build -t crab-detection-codetr . > ./data/logs/docker_build_v2.log 2>&1 &
+docker compose up
 ```
 
-
-### 3.2. Run the Container (Evaluation Mode)
-
-This mode runs the original evaluation script (`src/app/inference.py`). It compares model predictions against a ground-truth JSON (defined by `APP__inference__coco_json_path` in your `.env`) to calculate mAP, F1-score, precision, and recall.
-
-**Where is the COCO JSON file?:** For CO-DETR (which requires COCO format JSON), the annotations are stored separately under the CO-DETR tiled dataset folder on thor, for example: `/datalocal/akshay/cangrejo/v1_2_4/codetr_tiling_multicrop/instances_valid.json`. Currently you dont have that becuse the adtaset which you have in akshay-desktop is yolo format.
-
-Because we have a standardized `data/` folder in this repository, you only need to mount the single `data` directory to the container.
-
+#### Method B: Using Docker CLI
 **Linux:**
 ```bash
 docker run --rm \
@@ -103,8 +118,8 @@ docker run --rm \
     --user $(id -u):$(id -g) \
     --env-file .env \
     -v $(pwd)/data:/app/data \
-    -v $(pwd)/config.default.yaml:/app/config.default.yaml \
-    crab-detection-codetr .venv/bin/python -m src.app.inference
+    -v $(pwd)/config.default.yaml:/app/config.default.yaml:ro \
+    crab-detection-codetr .venv/bin/python -m src.app.visualize_inference
 ```
 
 **Windows (PowerShell):**
@@ -113,138 +128,104 @@ docker run --rm `
     --gpus all `
     --env-file .env `
     -v "${PWD}/data:/app/data" `
-    -v "${PWD}/config.default.yaml:/app/config.default.yaml" `
-    crab-detection-codetr .venv/bin/python -m src.app.inference
+    -v "${PWD}/config.default.yaml:/app/config.default.yaml:ro" `
+    crab-detection-codetr .venv/bin/python -m src.app.visualize_inference
 ```
 
-**Windows (Command Prompt):**
-```cmd
-docker run --rm ^
-    --gpus all ^
-    --env-file .env ^
-    -v "%cd%/data:/app/data" ^
-    -v "%cd%/config.default.yaml:/app/config.default.yaml" ^
-    crab-detection-codetr .venv/bin/python -m src.app.inference
-```
-
-### 3.3. Run the Container (Blind Inference & Export Mode)
-
-This is the standard mode if you just want to run inference blindly on a folder of raw images (without a ground-truth JSON) and export the results to Label Studio JSON and CSV formats. You dont need  `APP__inference__coco_json_path` in your .env for this mode.
-
-The outputs will be automatically saved in `data/json/<group_name>` and `data/csv/<group_name>`.
-
-**Linux Command:**
+#### Mounting Custom Host Directories:
+To run on any image folder on your computer without moving files into the project:
 ```bash
-docker run --rm \
-    --gpus all \
-    --user $(id -u):$(id -g) \
-    --env-file .env \
-    -v $(pwd)/data:/app/data \
-    crab-detection-codetr .venv/bin/python -m src.app.export_predictions --group-name "group1"
+docker run --rm --gpus all \
+    -v /path/to/my/images:/app/data/inference_samples \
+    -v /path/to/my/checkpoint_dir:/app/data/model \
+    crab-detection-codetr .venv/bin/python -m src.app.visualize_inference
 ```
+All prediction images and JSONs will appear directly in `/path/to/my/images/results/`!
 
-**Windows (PowerShell) Command:**
-```powershell
-docker run --rm `
-    --gpus all `
-    --env-file .env `
-    -v "${PWD}/data:/app/data" `
-    -v "${PWD}/config.default.yaml:/app/config.default.yaml" `
-    crab-detection-codetr .venv/bin/python -m src.app.export_predictions --group-name "group1"
-```
+## 4. How to Distribute to Another Person
 
-**Windows (Command Prompt) Command:**
-```cmd
-docker run --rm ^
-    --gpus all ^
-    --env-file .env ^
-    -v "%cd%/data:/app/data" ^
-    -v "%cd%/config.default.yaml:/app/config.default.yaml" ^
-    crab-detection-codetr .venv/bin/python -m src.app.export_predictions --group-name "group1"
-```
+There are two primary ways to deliver this project to a collaborator or another machine:
 
-> **Note on `--group-name` vs `dataset_dir`:** 
-> The `.env` file sets the root image folder (`APP__inference__dataset_dir=/app/data/images`). 
-> However, to prevent mixing all your images into one massive JSON file (which makes labeling chaotic), the script expects you to process specific subfolders. By passing `--group-name "group1"`, the script will automatically combine the root path with the group name (e.g., `/app/data/images/group1`) and output the JSON directly into a matching `data/json/group1/` folder.
+### Option A: Pre-built Docker Image Tarball (`.tar.gz`) — (Recommended)
+This is the cleanest and fastest delivery method. The recipient does **not** need Git, does **not** need PyTorch or CUDA installed on their host, does **not** need the `mmdetection` repository on their host, and does **not** need to wait for MMCV to compile. They only need Docker with NVIDIA GPU support.
 
-## 4. Visualizing with Label Studio
+1. **On your machine (Sender):**
+   First, ensure the image is built with the latest code, then export it:
+   ```bash
+   # 1. Rebuild to ensure latest code is baked into the image
+   docker compose build
 
-You can run Label Studio locally via Docker to view your raw images and overlay the generated JSON predictions. 
-*(Note: If you are running Label Studio on a remote machine, you can use SSH tunneling to view it locally by running: `ssh -L 8080:localhost:8080 your_username@remote_host_ip`)*
+   # 2. Export the image to a compressed tarball
+   docker save crab-detection-codetr:latest | gzip > crab-detection-codetr.tar.gz
+   ```
+   Send them:
+   - `crab-detection-codetr.tar.gz`
+   - The model weights file: `best_coco_bbox_mAP_50_epoch_4.pth`
 
-### 4.1. Start the Label Studio Container
+2. **On their machine (Recipient):**
+   ```bash
+   # 1. Load the Docker image
+   docker load < crab-detection-codetr.tar.gz
 
-> **Troubleshooting: Permission Issues with Data Directory**
-> The Label Studio container runs as a non-root user (UID `1001`) for security reasons, but it needs write access to your local `data` directory. If you get a permission error on boot, you need to change the group ownership to group 0 (which the container uses) and grant write permissions:
-> ```bash
-> sudo chown -R :0 data
-> sudo chmod -R g+rwX data
-> ```
+   # 2. Run inference directly on any folder of images
+   docker run --rm --gpus all \
+       -v /path/to/their/images:/app/data/inference_samples \
+       -v /path/to/weights_folder:/app/data/model \
+       crab-detection-codetr:latest
+   ```
+   All predictions will appear automatically in `/path/to/their/images/results/`.
 
-**Linux:**
-```bash
-docker pull heartexlabs/label-studio:latest
-docker run -it -p 8080:8080 -v "$(pwd)/data:/label-studio/data" -e LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED=true -e LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT=/label-studio/data heartexlabs/label-studio:latest
-```
+---
 
-**Windows (PowerShell):**
-```powershell
-docker pull heartexlabs/label-studio:latest
-docker run -it -p 8080:8080 -v "${PWD}/data:/label-studio/data" -e LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED=true -e LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT=/label-studio/data heartexlabs/label-studio:latest
-```
+### Option B: Full Source Code Archive (`.zip`)
+If the recipient wants the source code to modify it or run with `docker compose`:
 
-**Windows (Command Prompt):**
-```cmd
-docker pull heartexlabs/label-studio:latest
-docker run -it -p 8080:8080 -v "%cd%/data:/label-studio/data" -e LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED=true -e LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT=/label-studio/data heartexlabs/label-studio:latest
-```
+1. **On your machine (Sender):**
+   > **IMPORTANT:** Because `mmdetection/` is listed in `.gitignore`, a standard `git archive` will **NOT** include it! 
+   > You must zip the directory directly (ensuring the `mmdetection/` folder is included):
+   ```bash
+   zip -r crab-detection-codetr.zip . \
+       -x "data/dataset/*" \
+       -x "data/model/*.pth" \
+       -x ".venv/*" \
+       -x "*/__pycache__/*"
+   ```
+   Send them the `.zip` along with the model weights file (`best_coco_bbox_mAP_50_epoch_4.pth`).
 
-### 4.2. Import Predictions into Label Studio
-1. Open `http://localhost:8080` in your browser. Create a local account and a new project (e.g. "Crab Review").
-2. Go to **Labeling Setup** > **Custom Template** (or Code) and paste this layout:
-    ```xml
-    <View>
-      <Image name="image" value="$image"/>
-      <RectangleLabels name="label" toName="image">
-        <Label value="crab" background="red"/>
-      </RectangleLabels>
-    </View>
-    ```
-    Click **Save**.
-3. **(Important) Whitelist the Images Directory:** Go to **Settings** > **Cloud Storage** > **Add Source Storage**.
-    * **Storage Type:** Local files
-    * **Absolute local path:** `/label-studio/data/images` (This allows Label Studio to serve the local images)
-    * **Treat every bucket object as a source file:** Toggle this **OFF**.
-    * Click **Save** (Do not click Sync).
-4. **Import the JSON Predictions:** Click **Add Source Storage** again.
-    * **Storage Type:** Local files
-    * **Absolute local path:** `/label-studio/data/json/group1` (Change `group1` to your actual folder name)
-    * **File Filter Regex:** `.*\.json$`
-    * **Import Method:** **Tasks** (This extracts the pre-predicted bounding boxes from the JSON and overlays them onto the images).
-    * **Treat every bucket object as a source file:** Toggle this **OFF**.
-5. Click **Save & Sync**.
+2. **On their machine (Recipient):**
+   ```bash
+   # 1. Unzip the archive
+   unzip crab-detection-codetr.zip -d Crab-Detection-CODETR
+   cd Crab-Detection-CODETR
 
-## 5. Development Notes
+   # 2. Place the weights file in data/model/
+   mkdir -p data/model
+   cp /path/to/best_coco_bbox_mAP_50_epoch_4.pth data/model/
 
-If you want to run this locally without Docker, ensure you create a virtual environment, install the dependencies using `uv sync`, and execute using the virtual environment python:
+   # 3. Place input images in data/inference_samples/
+   mkdir -p data/inference_samples
+   cp /path/to/my_images/*.jpg data/inference_samples/
 
-```bash
-uv sync
-.venv/bin/python -m src.app.inference
-```
-*(Warning: Running outside Docker may lead to MMDetection/CUDA compilation issues depending on your local host setup.)*
+   # 4. Build and run with Docker Compose in one shot:
+   docker compose up --build
+   ```
+   *(Or build first with `docker compose build`, then run with `docker compose up` at their own convenience).*
 
-## 6. Troubleshooting Common Issues
+## 5. Troubleshooting Common Issues
 
-### 6.1. CUDA or PyTorch Compatibility Errors
-If you see an error like `NVIDIA ... is not compatible with the current PyTorch installation` or if PyTorch fails to initialize, ensure your host machine's NVIDIA driver is up to date. The Docker image uses PyTorch `cu128` (CUDA 12.8), which requires your host machine to have NVIDIA driver version **525.60.13 or newer**, regardless of how old your physical GPU is.
+### 5.1. CUDA & Driver Compatibility
+If you see an error like `NVIDIA ... is not compatible with the current PyTorch installation` or if PyTorch fails to initialize:
+- Ensure your host machine's NVIDIA driver is up to date. The Docker container runs PyTorch with CUDA 12.8 (`cu128`), which requires a host NVIDIA driver of **550.x or 570.x+** (minimum 525.60.13).
+- On newer **Blackwell GPUs** (e.g. RTX PRO 4000, `sm_120`), the host driver automatically JIT-compiles the embedded `+PTX` into native machine code.
 
-### 6.2. Out Of Memory (OOM) Errors on Inference
-If your GPU still runs out of memory (OOM) during inference:
-1. Ensure you are not running other heavy workloads on the GPU simultaneously.
-2. The inference script uses SAHI to automatically slice large 4K images into `1000x1000` patches to prevent memory exhaustion. If you have a GPU with less than 8GB of VRAM and you still encounter an OOM error, you can edit `src/app/export_predictions.py` and reduce the `slice_height` and `slice_width` from `1000` to `512`.
+### 5.2. Lower VRAM & Laptop GPUs (e.g., NVIDIA GTX 1060 6GB)
+If deploying or running on a 6GB card like a **GTX 1060 Laptop GPU**:
+1. **Driver Requirement**: Ensure the host has driver version **550 or 570+** installed. Pascal (`sm_61`) is supported by modern NVIDIA drivers and native kernels are pre-compiled into this image.
+2. **Strict Slice Size Requirement**: You **MUST keep `slice_size: 512`** (set in `.env` as `APP__inference__slice_size=512` or passed via `--slice-size 512`).
+   - At `slice_size: 512`, peak VRAM consumption is **~3.5 GB – 4.5 GB**, which fits comfortably inside the 6 GB VRAM of a GTX 1060.
+   - Do **NOT** increase `slice_size` to 1000 on a 6 GB card, as the Swin-Large attention layers will trigger a PyTorch `OutOfMemoryError`.
 
-### 6.3. Configuration Changes Have No Effect
+### 5.3. Configuration Changes Have No Effect
 If you change a value in `config.default.yaml` (such as `conf_threshold: 0.5`) but the model output doesn't change, ensure you are mounting the config file using the Docker volume flag:
 `-v $(pwd)/config.default.yaml:/app/config.default.yaml`
 Without this flag, Docker will run using the old config file that was "baked" into the image when you originally ran `docker build`.

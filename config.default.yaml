@@ -17,11 +17,18 @@ v1_2_4:
     use_sahi: false
 
 inference:
-  # Inside the Docker container, we assume data is mounted here:
+  # Paths inside the Docker container (mounted via -v ./data:/app/data)
+  input_dir: "/app/data/inference_samples"
+  results_dir: ""  # Leave empty to automatically save inside <input_dir>/results
   dataset_dir: "/app/data/images"
+  checkpoint_path: "/app/data/model/best_coco_bbox_mAP_50_epoch_4.pth"
+  model_config_path: "/app/src/config_models/crab_co_dino_swin_l.py"
   coco_json_path: "/app/data/annotations/instances_valid.json"
-  checkpoint_path: "/app/data/weights/best_coco_bbox_mAP_50_epoch_4.pth"
   
-  # Metrics evaluation thresholds
+  # Detection & Slicing (SAHI) parameters
   conf_threshold: 0.5
   iou_threshold: 0.2
+  slice_size: 512
+  overlap_ratio: 0.2
+  device: "cuda:0"
+  dpi: 150

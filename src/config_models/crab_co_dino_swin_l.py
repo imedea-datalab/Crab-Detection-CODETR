@@ -6,7 +6,7 @@
 
 # Use the absolute path to the MMDetection repository cloned by the slurm script
 _base_ = [
-    '/app/mmdetection/projects/CO-DETR/configs/codino/co_dino_5scale_swin_l_16xb1_1x_coco.py',
+    '../../mmdetection/projects/CO-DETR/configs/codino/co_dino_5scale_swin_l_16xb1_1x_coco.py',
 ]
 
 custom_imports = dict(
