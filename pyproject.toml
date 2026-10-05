@@ -16,6 +16,7 @@ dependencies = [
     "mmcv>=2.1.0, <2.2.0",
     "mmdet>=3.3.0",
     "tqdm",
+    "matplotlib",
     "setuptools<70"
 ]
 

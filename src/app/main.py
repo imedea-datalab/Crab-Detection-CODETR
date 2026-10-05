@@ -1,9 +1,8 @@
-from src.config.loader import load_config
+from src.app.visualize_inference import run_bulk_inference
 
 
 def run() -> None:
-    config = load_config()
-    print(f"App started. DB host: {config['database']['host']}")
+    run_bulk_inference()
 
 
 if __name__ == "__main__":

@@ -46,5 +46,5 @@ COPY src ./src
 COPY mmdetection ./mmdetection
 COPY config.default.yaml ./
 
-# Command to run inference
-CMD ["/app/.venv/bin/python", "-m", "src.app.inference"]
+# Command to run bulk visual inference
+CMD ["/app/.venv/bin/python", "-m", "src.app.visualize_inference"]
